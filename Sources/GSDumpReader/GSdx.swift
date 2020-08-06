@@ -8,10 +8,21 @@ fileprivate func load<T>(_ dll: OpaquePointer, _ symbol: String) throws -> T {
 }
 
 public class GSdx {
-	public enum LoadError: Error {
-		case noDLL
+	public enum LoadError: LocalizedError {
+		case noDLL(path: String)
 		case missingFunction(name: String)
 		case dllNotGSdx(type: Int)
+
+		public var errorDescription: String? {
+			switch self {
+			case .noDLL(let path):
+				return "Failed to load GSdx from \(path)"
+			case .missingFunction(let name):
+				return "The GSdx DLL was missing the function \(name)"
+			case .dllNotGSdx(let type):
+				return "The GSdx DLL reported itself as the unexpected type \(type)"
+			}
+		}
 	}
 
 	typealias GifTransfer = @convention(c) (_ data: UnsafeRawPointer, _ size: CInt) -> Void
@@ -36,9 +47,9 @@ public class GSdx {
 	public let `init`: @convention(c) () -> ()
 	public let makeSnapshot: @convention(c) (_ path: UnsafePointer<CChar>) -> CUnsignedInt
 
-	init(dll: String) throws {
+	public init(dll: String) throws {
 		guard let opened = dlopen(dll, RTLD_LAZY) else {
-			throw LoadError.noDLL
+			throw LoadError.noDLL(path: dll)
 		}
 		handle = OpaquePointer(opened)
 		let getType: @convention(c) () -> UInt32 = try load(handle, "PS2EgetLibType")

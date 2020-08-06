@@ -1,0 +1,1 @@
+GSDumpCLI.main()
