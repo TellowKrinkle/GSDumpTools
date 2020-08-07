@@ -7,7 +7,7 @@ extension BinaryReader {
 	}
 }
 
-struct GSDump {
+public struct GSDump {
 	public var crc: Int32
 	public var stateData: [UInt8]
 	public var registers: [UInt8] // 8192 bytes
@@ -41,7 +41,7 @@ extension GSDump {
 			case .vsync:
 				data.append(.vsync(data: try reader.forceRead()))
 			case .readFIFO2:
-				data.append(.readFIFO2(data: try reader.forceReadI32SizedBytes()))
+				data.append(.readFIFO2(size: try reader.forceReadLE()))
 			case .registers:
 				data.append(.registers(data: try reader.forceReadBytes(8192)))
 			}
@@ -59,5 +59,11 @@ extension GSDump {
 			var reader = try BufferedReader(fileReader, bufferSize: 65536)
 			try self.init(readingFrom: &reader)
 		}
+	}
+}
+
+extension GSDump: CustomStringConvertible {
+	public var description: String {
+		return "GSDump(crc: \(String(crc, radix: 16)), stateData: \(stateData.count) bytes, data: \(data))"
 	}
 }

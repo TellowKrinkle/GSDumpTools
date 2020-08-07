@@ -1,4 +1,5 @@
 import Foundation
+import CGSdxDefs
 
 fileprivate func load<T>(_ dll: OpaquePointer, _ symbol: String) throws -> T {
 	guard let ret = dlsym(UnsafeMutableRawPointer(dll), symbol) else {
@@ -37,12 +38,12 @@ public class GSdx {
 	public let reset: @convention(c) () -> Void
 	let readFIFO2: @convention(c) (_ data: UnsafeMutableRawPointer, _ size: CInt) -> Void
 	public let setGameCRC: @convention(c) (_ crc: CInt, _ options: CInt) -> Void
-	public let freeze: @convention(c) (_ mode: CInt, _ data: UnsafeRawPointer) -> Void
-	let open: @convention(c) (_ wnd: UnsafePointer<OpaquePointer>?, _ title: UnsafePointer<CChar>, _ renderer: CInt) -> CInt
+	let freeze: @convention(c) (_ mode: CInt, _ data: UnsafePointer<GSFreezeData>) -> CInt
+	let open: @convention(c) (_ wnd: UnsafePointer<OpaquePointer?>, _ title: UnsafePointer<CChar>, _ renderer: CInt) -> CInt
 	public let close: @convention(c) () -> Void
 	public let shutdown: @convention(c) () -> Void
 	public let configure: @convention(c) () -> Void
-	public let setBaseMem: @convention(c) (_ data: OpaquePointer) -> Void
+	public let setBaseMem: @convention(c) (_ data: UnsafeMutableRawPointer) -> Void
 	let getLibName: @convention(c) () -> UnsafePointer<CChar>
 	public let `init`: @convention(c) () -> ()
 	public let makeSnapshot: @convention(c) (_ path: UnsafePointer<CChar>) -> CUnsignedInt
@@ -65,7 +66,7 @@ public class GSdx {
 		readFIFO2    = try load(handle, "GSreadFIFO2")
 		setGameCRC   = try load(handle, "GSsetGameCRC")
 		freeze       = try load(handle, "GSfreeze")
-		open         = try load(handle, "open")
+		open         = try load(handle, "GSopen")
 		close        = try load(handle, "GSclose")
 		shutdown     = try load(handle, "GSshutdown")
 		configure    = try load(handle, "GSconfigure")
@@ -82,7 +83,8 @@ public class GSdx {
 
 extension GSdx {
 	// MARK: Make open easier to use
-	enum RendererType: Int8 {
+	public enum RendererType: Int8 {
+		case undefined = -1
 		case dx1011_hw = 3
 		case dx1011_sw
 		case null = 11
@@ -94,9 +96,25 @@ extension GSdx {
 
 	public struct OpenFailedError: Error {}
 
-	func open(wnd: UnsafePointer<OpaquePointer>?, title: UnsafePointer<CChar>, renderer: RendererType) throws {
+	func open(wnd: UnsafePointer<OpaquePointer?>, title: UnsafePointer<CChar>, renderer: RendererType) throws {
 		if open(wnd, title, CInt(renderer.rawValue)) < 0 {
 			throw OpenFailedError()
+		}
+	}
+}
+
+extension GSdx {
+	public enum FreezeMode: Int8 {
+		case load = 0
+		case save = 1
+		case size = 2
+	}
+
+	public struct DumpTooOld: Error {}
+
+	func freeze(mode: FreezeMode, data: UnsafePointer<GSFreezeData>) throws {
+		if freeze(CInt(mode.rawValue), data) < 0 {
+			throw DumpTooOld()
 		}
 	}
 }

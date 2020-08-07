@@ -1,4 +1,5 @@
 import Foundation
+import Dispatch
 import ArgumentParser
 import GSDumpReader
 
@@ -39,5 +40,33 @@ extension GSDumpCLI {
 
 		@Argument(help: "The dump to play", completion: .file(extensions: [".gs"]))
 		var dump: String
+
+		func run() throws {
+			let gsdx = try GSdx(dll: self.gsdx)
+			let dump = try GSDump(contentsOfFile: self.dump)
+			var error: Error? = nil
+			var done = false
+			gsdx.configure()
+			DispatchQueue.global().async {
+				defer { DispatchQueue.main.sync { done = true } }
+				let player = GSDumpPlayer(gsdx: gsdx)
+				do {
+					try player.open(dump, renderer: .ogl_hw)
+					while true {
+						for data in dump.data {
+							player.execute(data)
+						}
+					}
+				} catch let e {
+					DispatchQueue.main.sync { error = e }
+				}
+			}
+			while !done {
+				RunLoop.main.run(mode: .default, before: .distantFuture)
+			}
+			if let error = error {
+				throw error
+			}
+		}
 	}
 }
