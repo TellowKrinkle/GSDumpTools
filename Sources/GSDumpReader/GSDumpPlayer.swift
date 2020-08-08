@@ -6,39 +6,40 @@ public class GSDumpPlayer {
 	let gsdx: GSdx
 	public var registers: UnsafeMutableRawBufferPointer
 
-	public init(gsdx: GSdx) {
+	public init(gsdx: GSdx, dump: GSDump) throws {
+		var success = false
+
 		self.gsdx = gsdx
 		self.registers = .allocate(byteCount: 8192, alignment: 32)
-	}
+		defer { if !success { registers.deallocate() } }
 
-	deinit {
-		registers.deallocate()
-	}
-
-	public func open(_ dump: GSDump, renderer: GSdx.RendererType) throws {
 		updateRegisters(dump.registers)
 		gsdx.`init`()
 		gsdx.setBaseMem(registers.baseAddress!)
 		var wnd: OpaquePointer? = nil
-		try gsdx.open(wnd: &wnd, title: "", renderer: renderer)
+		try gsdx.open(wnd: &wnd, title: "")
+		defer { if !success { gsdx.close() } }
 		gsdx.setGameCRC(dump.crc, 0)
-		do {
-			try dump.stateData.withUnsafeBytes { ptr in
-				// Yay for C apis thinking "save" and "load" can share a type signature
-				let mutPtr = UnsafeMutableRawPointer(mutating: ptr.baseAddress!)
-				var data = GSFreezeData(size: Int32(ptr.count), data: mutPtr)
-				try gsdx.freeze(mode: .load, data: &data)
-				gsdx.vsync(1)
 
-				gsdx.reset()
-				updateRegisters(dump.registers)
-				gsdx.setBaseMem(registers.baseAddress!)
-				try gsdx.freeze(mode: .load, data: &data)
-			}
-		} catch {
-			gsdx.close()
-			throw error
+		try dump.stateData.withUnsafeBytes { ptr in
+			// Yay for C apis thinking "save" and "load" can share a type signature
+			let mutPtr = UnsafeMutableRawPointer(mutating: ptr.baseAddress!)
+			var data = GSFreezeData(size: Int32(ptr.count), data: mutPtr)
+			try gsdx.freeze(mode: .load, data: &data)
+			gsdx.vsync(1)
+
+			gsdx.reset()
+			updateRegisters(dump.registers)
+			gsdx.setBaseMem(registers.baseAddress!)
+			try gsdx.freeze(mode: .load, data: &data)
 		}
+
+		success = true
+	}
+
+	deinit {
+		gsdx.close()
+		registers.deallocate()
 	}
 
 	public func updateRegisters(_ newRegs: [UInt8]) {

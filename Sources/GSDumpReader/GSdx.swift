@@ -44,14 +44,20 @@ public class GSdx {
 	public let shutdown: @convention(c) () -> Void
 	public let configure: @convention(c) () -> Void
 	public let setBaseMem: @convention(c) (_ data: UnsafeMutableRawPointer) -> Void
+	public let setSettingsDir: @convention(c) (_ path: UnsafePointer<CChar>) -> Void
 	let getLibName: @convention(c) () -> UnsafePointer<CChar>
 	public let `init`: @convention(c) () -> ()
 	public let makeSnapshot: @convention(c) (_ path: UnsafePointer<CChar>) -> CUnsignedInt
 
 	public init(dll: String) throws {
+		// Deinit doesn't run if the init fails, so we need separate cleanup
+		var success = false
+
 		guard let opened = dlopen(dll, RTLD_LAZY) else {
 			throw LoadError.noDLL(path: dll)
 		}
+		defer { if !success { dlclose(opened) } }
+
 		handle = OpaquePointer(opened)
 		let getType: @convention(c) () -> UInt32 = try load(handle, "PS2EgetLibType")
 		if getType() != 1 {
@@ -71,9 +77,12 @@ public class GSdx {
 		shutdown     = try load(handle, "GSshutdown")
 		configure    = try load(handle, "GSconfigure")
 		setBaseMem   = try load(handle, "GSsetBaseMem")
+		setSettingsDir = try load(handle, "GSsetSettingsDir")
 		getLibName   = try load(handle, "PS2EgetLibName")
 		`init`       = try load(handle, "GSinit")
 		makeSnapshot = try load(handle, "GSmakeSnapshot")
+
+		success = true
 	}
 
 	deinit {
@@ -82,8 +91,7 @@ public class GSdx {
 }
 
 extension GSdx {
-	// MARK: Make open easier to use
-	public enum RendererType: Int8 {
+	public enum Renderer: Int8 {
 		case undefined = -1
 		case dx1011_hw = 3
 		case dx1011_sw
@@ -93,11 +101,14 @@ extension GSdx {
 		case dx1011_opencl = 15
 		case ogl_opencl = 17
 	}
+}
 
+extension GSdx {
+	// MARK: Make open easier to use
 	public struct OpenFailedError: Error {}
 
-	func open(wnd: UnsafePointer<OpaquePointer?>, title: UnsafePointer<CChar>, renderer: RendererType) throws {
-		if open(wnd, title, CInt(renderer.rawValue)) < 0 {
+	func open(wnd: UnsafePointer<OpaquePointer?>, title: UnsafePointer<CChar>) throws {
+		if open(wnd, title, 0) < 0 {
 			throw OpenFailedError()
 		}
 	}
