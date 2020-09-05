@@ -21,6 +21,9 @@ struct GSDumpCLI: ParsableCommand {
 	@Option(name: [.short, .customLong("config-dir")], help: "The directory containing the GSdx.ini to use", completion: .directory)
 	var configDir: String?
 
+	@Option(name: [.customLong("render-to")], help: "Render frames to the given output (use {} for frame number)")
+	var output: String?
+
 	func run() throws {
 		let gsdx = try GSdx(dll: self.gsdx)
 		let dump = try GSDump(contentsOfFile: self.dump)
@@ -35,9 +38,21 @@ struct GSDumpCLI: ParsableCommand {
 			defer { DispatchQueue.main.sync { done = true } }
 			do {
 				let player = try GSDumpPlayer(gsdx: gsdx, dump: dump)
-				while true {
+				if let output = self.output {
+					let namebase = output.replacingOccurrences(of: ".png", with: "") + "!"
+					var i = 0
 					for data in dump.data {
+						if case .vsync(_) = data {
+							_ = gsdx.makeSnapshot(namebase.replacingOccurrences(of: "{}", with: String(i)))
+							i += 1
+						}
 						player.execute(data)
+					}
+				} else {
+					while true {
+						for data in dump.data {
+							player.execute(data)
+						}
 					}
 				}
 			} catch let e {
