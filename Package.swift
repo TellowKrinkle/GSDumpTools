@@ -15,7 +15,7 @@ let package = Package(
 	dependencies: [
 		// Dependencies declare other packages that this package depends on.
 		// .package(url: /* package url */, from: "1.0.0"),
-		.package(name: "BinaryReader", url: "https://github.com/tellowkrinkle/SwiftBinaryReader.git", from: "0.1.1"),
+		.package(url: "https://github.com/tellowkrinkle/SwiftBinaryReader.git", from: "0.1.1"),
 		.package(url: "https://github.com/apple/swift-argument-parser", .upToNextMinor(from: "0.2.0")),
 	],
 	targets: [
@@ -24,7 +24,7 @@ let package = Package(
 		.target(name: "CGSdxDefs"),
 		.target(
 			name: "GSDumpReader",
-			dependencies: ["CGSdxDefs", "BinaryReader"]
+			dependencies: ["CGSdxDefs", .product(name: "BinaryReader", package: "SwiftBinaryReader")]
 		),
 		.testTarget(
 			name: "GSDumpReaderTests",
