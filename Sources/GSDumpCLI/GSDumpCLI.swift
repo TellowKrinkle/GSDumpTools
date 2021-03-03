@@ -38,12 +38,14 @@ struct GSDumpCLI: ParsableCommand {
 			defer { DispatchQueue.main.sync { done = true } }
 			do {
 				let player = try GSDumpPlayer(gsdx: gsdx, dump: dump)
-				if let output = self.output {
-					let namebase = output.replacingOccurrences(of: ".png", with: "") + "!"
+				if var output = self.output {
+					if !output.hasSuffix(".png") {
+						output += ".png"
+					}
 					var i = 0
 					for data in dump.data {
 						if case .vsync(_) = data {
-							_ = gsdx.makeSnapshot(namebase.replacingOccurrences(of: "{}", with: String(i)))
+							_ = gsdx.makeSnapshot(output.replacingOccurrences(of: "{}", with: String(i)))
 							i += 1
 						}
 						player.execute(data)
