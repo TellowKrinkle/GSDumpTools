@@ -10,14 +10,14 @@ fileprivate func load<T>(_ dll: OpaquePointer, _ symbol: String) throws -> T {
 
 public class GSdx {
 	public enum LoadError: LocalizedError {
-		case noDLL(path: String)
+		case noDLL(path: String, msg: String)
 		case missingFunction(name: String)
 		case dllNotGSdx(type: Int)
 
 		public var errorDescription: String? {
 			switch self {
-			case .noDLL(let path):
-				return "Failed to load GSdx from \(path)"
+			case .noDLL(let path, let msg):
+				return "Failed to load GSdx from \(path): \(msg)"
 			case .missingFunction(let name):
 				return "The GSdx DLL was missing the function \(name)"
 			case .dllNotGSdx(let type):
@@ -54,7 +54,9 @@ public class GSdx {
 		var success = false
 
 		guard let opened = dlopen(dll, RTLD_LAZY) else {
-			throw LoadError.noDLL(path: dll)
+			var err = [Int8](repeating: 0, count: 128)
+			strerror_r(errno, &err, 128)
+			throw LoadError.noDLL(path: dll, msg: String(cString: err))
 		}
 		defer { if !success { dlclose(opened) } }
 
