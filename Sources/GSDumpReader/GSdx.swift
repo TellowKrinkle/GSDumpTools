@@ -54,9 +54,7 @@ public class GSdx {
 		var success = false
 
 		guard let opened = dlopen(dll, RTLD_LAZY) else {
-			var err = [Int8](repeating: 0, count: 128)
-			strerror_r(errno, &err, 128)
-			throw LoadError.noDLL(path: dll, msg: String(cString: err))
+			throw LoadError.noDLL(path: dll, msg: String(cString: dlerror()))
 		}
 		defer { if !success { dlclose(opened) } }
 
